@@ -23,6 +23,7 @@ const RideSummary = ({
     onOfficeRuleClick,
     isOfficeFixed,
     onSaveLocation,
+    onRemoveLocation,
     savedLocations = []
 }) => {
     const isSaved = (addr) => savedLocations.some(s => s.addr === addr);
@@ -30,6 +31,16 @@ const RideSummary = ({
     const formatTime = (date) => {
         if (!date) return '--:--';
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    };
+
+    const getDayLabel = (date) => {
+        if (!date) return 'Today';
+        const today = new Date();
+        const tomorrow = new Date();
+        tomorrow.setDate(today.getDate() + 1);
+        if (date.toDateString() === today.toDateString()) return 'Today';
+        if (date.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+        return 'Today';
     };
 
     return (
@@ -51,9 +62,6 @@ const RideSummary = ({
                             <p className='text-[10px] font-black text-slate-700 uppercase tracking-[0.2em] mt-1'>Review & Dispatch</p>
                         </div>
                     </div>
-                    <div className='px-4 py-2 bg-slate-900/10 backdrop-blur-md rounded-2xl border border-slate-900/5'>
-                        <span className='text-[10px] font-black text-slate-900 uppercase tracking-widest'>Ready</span>
-                    </div>
                 </div>
 
                 {/* Vertical Route Timeline */}
@@ -63,33 +71,41 @@ const RideSummary = ({
 
                     {/* Pickup Point */}
                     <div 
-                        className={`group rounded-2xl flex items-center gap-4 transition-all border shadow-sm ${
-                            isOfficeFixed === 'pickup' ? 'bg-slate-50/50 border-slate-100 opacity-80' : 'bg-white/40 backdrop-blur-xl border-white/50 hover:bg-white/60'
-                        }`}
+                        className="group rounded-2xl flex items-center gap-4 transition-all border shadow-sm bg-white/40 backdrop-blur-xl border-white/50 hover:bg-white/60"
                     >
                         <div 
-                            onClick={isOfficeFixed === 'pickup' ? onOfficeRuleClick : onEditPickup}
-                            className='flex-1 flex items-center gap-4 p-4 cursor-pointer active:scale-[0.98] transition-all'
+                            onClick={onEditPickup}
+                            className='flex-1 flex items-center gap-4 p-4 cursor-pointer active:scale-[0.98] transition-all min-w-0'
                         >
-                            <div className='w-11 h-11 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500 shadow-sm shrink-0 border border-emerald-100'>
+                            <div className='w-11 h-11 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500 shadow-sm shrink-0 border border-emerald-100 relative'>
                                 <div className='w-2.5 h-2.5 bg-current rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]'></div>
+                                {isOfficeFixed === 'pickup' && (
+                                    <div className='absolute -top-1 -right-1 w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center border-2 border-white pointer-events-none' title="Office Area">
+                                        <div className='w-1 h-1 bg-white rounded-full'></div>
+                                    </div>
+                                )}
                             </div>
                             <div className='flex-1 min-w-0'>
-                                <p className='text-[9px] font-black text-slate-700 uppercase tracking-widest mb-0.5'>Pick-up point</p>
-                                <p className='text-sm font-bold text-slate-800 truncate leading-tight'>{pickup.addr}</p>
+                                <div className='flex items-center gap-2 mb-0.5'>
+                                    <p className='text-[9px] font-black text-slate-700 uppercase tracking-widest'>Pick-up point</p>
+                                </div>
+                                <div className='w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] cursor-grab active:cursor-grabbing'>
+                                    <p className='text-sm font-bold text-slate-800 whitespace-nowrap leading-tight'>{pickup.addr}</p>
+                                </div>
                             </div>
                         </div>
                         <button 
-                            onClick={() => {
-                                if (isOfficeFixed === 'pickup') {
-                                    onOfficeRuleClick();
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (isSaved(pickup.addr)) {
+                                    onRemoveLocation(pickup.addr);
                                 } else {
                                     onSaveLocation(pickup);
                                 }
                             }}
-                            className={`mr-4 w-8 h-8 rounded-lg ${isSaved(pickup.addr) || isOfficeFixed === 'pickup' ? 'bg-orange-500/10' : 'bg-slate-900/5'} flex items-center justify-center transition-all hover:bg-orange-500/20 active:scale-90 ${isOfficeFixed === 'pickup' || isSaved(pickup.addr) ? 'opacity-100' : 'opacity-100'}`}
+                            className={`mr-4 w-8 h-8 rounded-lg ${isSaved(pickup.addr) ? 'bg-orange-500/10' : 'bg-slate-900/5'} flex items-center justify-center transition-all hover:bg-orange-500/20 active:scale-90`}
                         >
-                            <svg className={`w-4 h-4 ${isSaved(pickup.addr) || isOfficeFixed === 'pickup' ? 'text-orange-500' : 'text-slate-700'}`} fill={isSaved(pickup.addr) || isOfficeFixed === 'pickup' ? 'currentColor' : 'none'} stroke='currentColor' viewBox='0 0 24 24'><path d='M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.175 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} /></svg>
+                            <svg className={`w-4 h-4 ${isSaved(pickup.addr) ? 'text-orange-500' : 'text-slate-700'}`} fill={isSaved(pickup.addr) ? 'currentColor' : 'none'} stroke='currentColor' viewBox='0 0 24 24'><path d='M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.175 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} /></svg>
                         </button>
                     </div>
 
@@ -98,33 +114,41 @@ const RideSummary = ({
 
                     {/* Drop-off Point */}
                     <div 
-                        className={`group rounded-2xl flex items-center gap-4 transition-all border shadow-sm ${
-                            isOfficeFixed === 'destination' ? 'bg-slate-50/50 border-slate-100 opacity-80' : 'bg-white/40 backdrop-blur-xl border-white/50 hover:bg-white/60'
-                        }`}
+                        className="group rounded-2xl flex items-center gap-4 transition-all border shadow-sm bg-white/40 backdrop-blur-xl border-white/50 hover:bg-white/60"
                     >
                         <div 
-                            onClick={isOfficeFixed === 'destination' ? onOfficeRuleClick : onEditDestination}
-                            className='flex-1 flex items-center gap-4 p-4 cursor-pointer active:scale-[0.98] transition-all'
+                            onClick={onEditDestination}
+                            className='flex-1 flex items-center gap-4 p-4 cursor-pointer active:scale-[0.98] transition-all min-w-0'
                         >
-                            <div className='w-11 h-11 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 shadow-sm shrink-0 border border-rose-100'>
+                            <div className='w-11 h-11 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 shadow-sm shrink-0 border border-rose-100 relative'>
                                 <div className='w-2.5 h-2.5 bg-current rounded-full shadow-[0_0_10px_rgba(244,63,94,0.5)]'></div>
+                                {isOfficeFixed === 'destination' && (
+                                    <div className='absolute -top-1 -right-1 w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center border-2 border-white pointer-events-none' title="Office Area">
+                                        <div className='w-1 h-1 bg-white rounded-full'></div>
+                                    </div>
+                                )}
                             </div>
                             <div className='flex-1 min-w-0'>
-                                <p className='text-[9px] font-black text-slate-700 uppercase tracking-widest mb-0.5'>Drop-off destination</p>
-                                <p className='text-sm font-bold text-slate-800 truncate leading-tight'>{destination.addr}</p>
+                                <div className='flex items-center gap-2 mb-0.5'>
+                                    <p className='text-[9px] font-black text-slate-700 uppercase tracking-widest'>Drop-off destination</p>
+                                </div>
+                                <div className='w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] cursor-grab active:cursor-grabbing'>
+                                    <p className='text-sm font-bold text-slate-800 whitespace-nowrap leading-tight'>{destination.addr}</p>
+                                </div>
                             </div>
                         </div>
                         <button 
-                            onClick={() => {
-                                if (isOfficeFixed === 'destination') {
-                                    onOfficeRuleClick();
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (isSaved(destination.addr)) {
+                                    onRemoveLocation(destination.addr);
                                 } else {
                                     onSaveLocation(destination);
                                 }
                             }}
-                            className={`mr-4 w-8 h-8 rounded-lg ${isSaved(destination.addr) || isOfficeFixed === 'destination' ? 'bg-orange-500/10' : 'bg-slate-900/5'} flex items-center justify-center transition-all hover:bg-orange-500/20 active:scale-90 ${isOfficeFixed === 'destination' || isSaved(destination.addr) ? 'opacity-100' : 'opacity-100'}`}
+                            className={`mr-4 w-8 h-8 rounded-lg ${isSaved(destination.addr) ? 'bg-orange-500/10' : 'bg-slate-900/5'} flex items-center justify-center transition-all hover:bg-orange-500/20 active:scale-90`}
                         >
-                            <svg className={`w-4 h-4 ${isSaved(destination.addr) || isOfficeFixed === 'destination' ? 'text-orange-500' : 'text-slate-700'}`} fill={isSaved(destination.addr) || isOfficeFixed === 'destination' ? 'currentColor' : 'none'} stroke='currentColor' viewBox='0 0 24 24'><path d='M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.175 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} /></svg>
+                            <svg className={`w-4 h-4 ${isSaved(destination.addr) ? 'text-orange-500' : 'text-slate-700'}`} fill={isSaved(destination.addr) ? 'currentColor' : 'none'} stroke='currentColor' viewBox='0 0 24 24'><path d='M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.175 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} /></svg>
                         </button>
                     </div>
                 </div>
@@ -181,7 +205,10 @@ const RideSummary = ({
                         onClick={onEditTime}
                         className='bg-slate-900/80 backdrop-blur-xl text-white p-5 rounded-3xl shadow-xl active:scale-[0.95] transition-all cursor-pointer hover:bg-slate-900 border border-slate-700 group'
                     >
-                        <p className='text-[9px] font-black text-white/50 uppercase tracking-widest mb-1 group-hover:text-orange-400 transition-colors'>Departure</p>
+                        <div className='mb-1'>
+                            <p className='text-[9px] font-black text-white/50 uppercase tracking-widest group-hover:text-orange-400 transition-colors'>Departure</p>
+                            <p className='text-[8px] font-black text-white/70 uppercase tracking-widest mt-0.5'>{getDayLabel(scheduledTime)}</p>
+                        </div>
                         <div className='flex items-baseline gap-1'>
                             <p className='text-2xl font-black tracking-tight'>{formatTime(scheduledTime).split(' ')[0]}</p>
                             <span className='text-[10px] font-black opacity-50'>{formatTime(scheduledTime).split(' ')[1]}</span>
@@ -189,20 +216,15 @@ const RideSummary = ({
                     </div>
 
                     {/* Ride Preference Switcher */}
-                    <div className='bg-white/40 backdrop-blur-xl p-1.5 rounded-3xl flex shadow-inner border border-white/50'>
-                        <button 
-                            onClick={onToggleSolo} 
-                            className={`flex-1 flex flex-col items-center justify-center rounded-2xl transition-all duration-300 ${isSolo ? 'bg-white text-slate-900 shadow-md' : 'text-slate-700 hover:text-slate-900'}`}
-                        >
-                            <span className='text-[10px] font-black uppercase tracking-widest'>Solo</span>
-                        </button>
-                        <button 
-                            onClick={onToggleSolo} 
-                            className={`flex-1 flex flex-col items-center justify-center rounded-2xl transition-all duration-300 ${!isSolo ? 'bg-white text-slate-900 shadow-md' : 'text-slate-700 hover:text-slate-900'}`}
-                        >
-                            <span className='text-[10px] font-black uppercase tracking-widest'>Pool</span>
-                        </button>
-                    </div>
+                    <button 
+                        onClick={onToggleSolo} 
+                        className={`p-3 rounded-3xl flex flex-col items-center justify-center transition-all duration-300 border ${isSolo ? 'bg-slate-900 border-slate-900 shadow-xl text-white' : 'bg-white/40 backdrop-blur-xl border-white/50 shadow-inner text-slate-500 hover:bg-white/60 hover:text-slate-700'}`}
+                    >
+                        <svg className={`w-6 h-6 mb-1 ${isSolo ? 'text-white' : 'text-slate-400'}`} fill='none' stroke='currentColor' viewBox='0 0 24 24'><path d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} /></svg>
+                        <span className='text-[8px] font-black uppercase tracking-widest text-center leading-tight px-2'>
+                            {isSolo ? 'Solo Preference Active' : 'Click Only For Solo Preference'}
+                        </span>
+                    </button>
                 </div>
 
                 {/* Final Action Button */}

@@ -57,9 +57,9 @@ export const userService = {
 };
 
 export const rideService = {
-    bookRide: (data) => api.post('/ride-request/book-ride', data),
-    getRideDetails: (id) => api.get(`/ride-request/${id}`),
-    cancelRide: (id, reason) => api.patch(`/ride-request/cancel/${id}`, { cancel_reason: reason }),
+    bookRide: (data) => api.post('/ride/book-ride', data),
+    getRideDetails: (id) => api.get(`/ride/${id}`),
+    cancelRide: (id, reason) => api.patch(`/ride/cancel/${id}`, { cancel_reason: reason }),
 };
 
 export const mapService = {

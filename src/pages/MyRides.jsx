@@ -22,64 +22,63 @@ const RideCard = ({ ride, onCancel, onClick }) => {
   const statusLabel = ride.status_label || cfg.label;
 
   return (
-    <div 
+    <div
       onClick={() => onClick(ride._id)}
-      className={`bg-white rounded-4xl border ${cfg.border} shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-transform`}
+      className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:border-blue-100 group"
     >
-      <div className='bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm flex items-center justify-between group hover:border-orange-100 transition-colors'>
-          <div className='flex items-center gap-5'>
-              <div className={`w-4 h-4 rounded-full ring-8 ${ride.status === 'CANCELLED' ? 'bg-rose-500 ring-rose-50' : 'bg-orange-500 ring-orange-50 animate-pulse'}`}></div>
-              <span className='text-3xl font-black text-slate-800 uppercase tracking-tighter'>{statusLabel}</span>
+      <div className="p-5 flex flex-col sm:flex-row sm:items-center gap-5">
+        {/* Status & Time Bar */}
+        <div className="flex items-center justify-between sm:flex-col sm:justify-center sm:items-start sm:min-w-[120px] gap-2">
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${cfg.dot} ${ride.status !== 'CANCELLED' && ride.status !== 'COMPLETED' ? 'animate-pulse' : ''}`}></div>
+            <span className={`text-[10px] font-black uppercase tracking-widest ${cfg.text}`}>{statusLabel}</span>
           </div>
-          <p className='text-[10px] font-black text-slate-500 uppercase tracking-[0.2rem] bg-slate-50 px-4 py-2 rounded-full border border-slate-100'>
-              {ride.scheduled_at ? new Date(ride.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A'}
+          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">
+            {ride.scheduled_at ? new Date(ride.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A'}
           </p>
-      </div>
+        </div>
 
-      <div className="px-5 py-4 space-y-3">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-start gap-3">
-            <div className="mt-1 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-4 ring-emerald-50 shrink-0"></div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pickup</p>
-              <p className="text-sm font-bold text-slate-700 leading-snug truncate">{ride.pickup_address || 'N/A'}</p>
+        {/* Route Info */}
+        <div className="flex-1 min-w-0 border-l border-slate-50 pl-5 sm:border-l-2">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></div>
+              <p className="text-sm font-bold text-slate-700 truncate">{ride.pickup_address?.split(',')[0] || 'N/A'}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0"></div>
+              <p className="text-sm font-bold text-slate-700 truncate">{ride.drop_address?.split(',')[0] || 'N/A'}</p>
             </div>
           </div>
-          <div className="ml-1 w-px h-4 bg-slate-100"></div>
-          <div className="flex items-start gap-3">
-            <div className="mt-1 w-2.5 h-2.5 rounded-full bg-rose-400 ring-4 ring-rose-50 shrink-0"></div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Drop</p>
-              <p className="text-sm font-bold text-slate-700 leading-snug truncate">{ride.drop_address || 'N/A'}</p>
-            </div>
+          
+          <div className="flex gap-2 mt-3">
+            <span className="px-3 py-1 bg-slate-50 rounded-full text-[8px] font-black text-slate-400 uppercase tracking-widest border border-slate-100">
+              {ride.destination_type}
+            </span>
+            <span className="px-3 py-1 bg-slate-50 rounded-full text-[8px] font-black text-slate-400 uppercase tracking-widest border border-slate-100">
+              {ride.solo_preference ? 'Solo' : 'Pool'}
+            </span>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 pt-1">
-          <span className="px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase tracking-widest">
-            {ride.destination_type}
-          </span>
-          <span className="px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase tracking-widest">
-            {ride.solo_preference ? '🚗 Solo' : '👥 Pool'}
-          </span>
-          {ride.is_late_request && (
-            <span className="px-3 py-1 bg-orange-50 border border-orange-100 rounded-full text-[10px] font-black text-orange-500 uppercase tracking-widest">
-              ⚡ Late
-            </span>
+        {/* Actions */}
+        <div className="sm:pl-5 flex items-center shrink-0">
+          {["PENDING", "IN_CLUSTERING", "CLUSTERED", "BOOKED_SOLO"].includes(ride.status) ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onCancel(ride._id);
+              }}
+              className="px-6 py-3 bg-rose-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-200 active:scale-95 transition-all w-full sm:w-auto"
+            >
+              Cancel
+            </button>
+          ) : (
+             <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+             </div>
           )}
         </div>
-
-        {["PENDING", "IN_CLUSTERING", "CLUSTERED", "BOOKED_SOLO"].includes(ride.status) && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onCancel(ride._id);
-            }}
-            className="w-full mt-2 py-4 bg-rose-500/80 backdrop-blur-lg text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 hover:scale-105 hover:shadow-lg"
-          >
-            Cancel Ride
-          </button>
-        )}
       </div>
     </div>
   );
@@ -126,7 +125,7 @@ const MyRides = () => {
     if (!cancelTarget) return;
     try {
       setError(null);
-      await api.patch(`/ride-request/cancel/${cancelTarget}`, { cancel_reason: selectedReason });
+      await api.patch(`/ride/cancel/${cancelTarget}`, { cancel_reason: selectedReason });
       setCancelTarget(null);
       showToast('Ride cancelled successfully', 'success');
       fetchRides();
@@ -150,9 +149,8 @@ const MyRides = () => {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                tab === t ? 'bg-slate-900/80 backdrop-blur-lg text-white shadow-xl scale-100 font-black' : 'bg-slate-100/70 backdrop-blur-md text-slate-500 font-black'
-              }`}
+              className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === t ? 'bg-slate-900/80 backdrop-blur-lg text-white shadow-xl scale-100 font-black' : 'bg-slate-100/70 backdrop-blur-md text-slate-500 font-black'
+                }`}
             >
               {t === 'active' ? `Active (${rides.active?.length || 0})` : `History (${rides.past?.length || 0})`}
             </button>
@@ -169,8 +167,8 @@ const MyRides = () => {
                 <div className="h-4 bg-slate-100 rounded-full w-3/4"></div>
                 <div className="h-4 bg-slate-100 rounded-full w-1/2"></div>
                 <div className="flex gap-2 mt-4">
-                    <div className="h-8 bg-slate-50 rounded-full w-16"></div>
-                    <div className="h-8 bg-slate-50 rounded-full w-16"></div>
+                  <div className="h-8 bg-slate-50 rounded-full w-16"></div>
+                  <div className="h-8 bg-slate-50 rounded-full w-16"></div>
                 </div>
               </div>
             </div>
@@ -178,7 +176,7 @@ const MyRides = () => {
         ) : error ? (
           <div className="text-center py-12 px-6">
             <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4 text-rose-500">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
             </div>
             <p className="text-rose-500 font-bold mb-6">{error}</p>
             <button onClick={fetchRides} className="px-10 py-4 bg-slate-900/80 backdrop-blur-lg text-white rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg hover:shadow-2xl active:scale-95 hover:scale-105 transition-all">
@@ -197,8 +195,8 @@ const MyRides = () => {
               {tab === 'active' ? 'Looking for a ride? Start your journey now.' : 'Your travel history will appear right here.'}
             </p>
             {tab === 'active' && (
-              <button 
-                onClick={goToBooking} 
+              <button
+                onClick={goToBooking}
                 className="px-10 py-5 bg-slate-900/80 backdrop-blur-lg text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.25rem] shadow-2xl active:scale-95 hover:scale-105 transition-all hover:shadow-3xl"
               >
                 Book a New Ride
@@ -206,14 +204,14 @@ const MyRides = () => {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
+          <div className="grid grid-cols-1 gap-4">
             {displayedRides.map(ride => (
               <div key={ride._id} className="animate-in slide-in-from-bottom-5 duration-500">
-                  <RideCard 
-                    ride={ride} 
-                    onCancel={setCancelTarget} 
-                    onClick={goToRideDetails}
-                  />
+                <RideCard
+                  ride={ride}
+                  onCancel={setCancelTarget}
+                  onClick={goToRideDetails}
+                />
               </div>
             ))}
           </div>
@@ -221,29 +219,28 @@ const MyRides = () => {
       </div>
 
       <ActionModal
-          visible={!!cancelTarget}
-          title="Cancel Ride?"
-          description="Please select a reason for cancellation. This action cannot be undone."
-          onConfirm={handleCancel}
-          onCancel={() => setCancelTarget(null)}
-          confirmText="Yes, Cancel"
-          isDangerous={true}
+        visible={!!cancelTarget}
+        title="Cancel Ride?"
+        description="Please select a reason for cancellation. This action cannot be undone."
+        onConfirm={handleCancel}
+        onCancel={() => setCancelTarget(null)}
+        confirmText="Yes, Cancel"
+        isDangerous={true}
       >
-          <div className="grid grid-cols-1 gap-2 mt-4">
-              {cancelReasons.map(r => (
-                  <button
-                      key={r}
-                      onClick={() => setSelectedReason(r)}
-                      className={`p-4 rounded-xl text-left text-xs font-bold transition-all border ${
-                          selectedReason === r 
-                              ? 'bg-slate-900/10 border-slate-900/20 text-slate-900 ring-2 ring-slate-900/10' 
-                              : 'bg-white border-slate-100 text-slate-400 hover:bg-slate-50'
-                      }`}
-                  >
-                      {r}
-                  </button>
-              ))}
-          </div>
+        <div className="grid grid-cols-1 gap-2 mt-4">
+          {cancelReasons.map(r => (
+            <button
+              key={r}
+              onClick={() => setSelectedReason(r)}
+              className={`p-4 rounded-xl text-left text-xs font-bold transition-all border ${selectedReason === r
+                  ? 'bg-slate-900/10 border-slate-900/20 text-slate-900 ring-2 ring-slate-900/10'
+                  : 'bg-white border-slate-100 text-slate-400 hover:bg-slate-50'
+                }`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
       </ActionModal>
     </div>
   );

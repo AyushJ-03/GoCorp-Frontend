@@ -1,55 +1,118 @@
 import React, { useState } from 'react';
 import L from 'leaflet';
-import { MapContainer, TileLayer } from 'react-leaflet';
-import { isValidPos } from '../utils/geoUtils';
+import { MapContainer, TileLayer, Marker, Circle } from 'react-leaflet';
+import { isValidPos, getDistance as calcDistance } from '../utils/geoUtils';
 import RideSummary from './RideSummary';
 import ActionModal from './common/ActionModal';
 import { useUI } from '../context/UIContext';
 
-// --- MAP LAYER ---
-export const MapLayer = ({ pickupPos, destinationPos, mapCenter, bookingStep, MapEventsHandler, ChangeView, onMapMove, onReverseGeocode, onMoveStart, isDragging, onCurrentLocation }) => (
-    <div className='absolute inset-0 z-0 bg-slate-50'>
-        <MapContainer 
-            center={isValidPos(mapCenter) ? mapCenter : [28.6273, 77.3725]} 
-            zoom={15} 
-            style={{ height: '100%', width: '100%' }} 
-            zoomControl={false}
-            dragging={bookingStep !== 'confirmSummary'}
-            scrollWheelZoom={bookingStep !== 'confirmSummary'}
-            doubleClickZoom={bookingStep !== 'confirmSummary'}
-            touchZoom={bookingStep !== 'confirmSummary'}
-        >
-            <TileLayer url="https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png" />
-            <MapEventsHandler 
-                onMoveStart={onMoveStart}
-                onMoveEnd={onMapMove}
-                onReverseGeocode={onReverseGeocode}
-                bookingStep={bookingStep}
-            />
-            <ChangeView center={mapCenter} />
-            
-            <ChangeView center={mapCenter} />
-        </MapContainer>
-        
-        {/* Picking Pin Overlay */}
-        {(bookingStep === 'pickingPickup' || bookingStep === 'pickingDestination' || bookingStep === 'home') && !isDragging && (
-            <div className='absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none mb-10'>
-                <div className={`w-10 h-10 rounded-full border-[5px] border-white shadow-2xl flex items-center justify-center transition-all duration-300 ${bookingStep === 'pickingDestination' ? 'bg-rose-500' : 'bg-emerald-500'}`}>
-                    <div className='w-2 h-2 bg-white rounded-full'></div>
-                </div>
-                <div className='w-1.5 h-1.5 bg-slate-900/20 mx-auto mt-2 rounded-full blur-[2px]'></div>
+const getMarkerIcon = () => {
+    return L.divIcon({
+        html: `
+            <div class="relative flex items-center justify-center w-8 h-8">
+                <div class="absolute inset-0 rounded-full border-[5px] border-orange-500 shadow-sm"></div>
+                <div class="w-1.5 h-1.5 bg-orange-500 rounded-full shadow-[0_0_6px_rgba(249,115,22,1)]"></div>
             </div>
-        )}
+        `,
+        className: 'custom-map-marker',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+    });
+};
+
+const getOfficeMarkerIcon = () => {
+    return L.divIcon({
+        html: `
+            <div class="relative flex items-center justify-center w-8 h-8">
+                <div class="absolute inset-0 bg-blue-600/20 rounded-full animate-ping duration-[3000ms]"></div>
+                <div class="w-3 h-3 bg-blue-600 rounded-full border-2 border-white shadow-lg"></div>
+                <div class="absolute -top-10 px-2 py-1 bg-blue-600 text-white text-[7px] font-black uppercase tracking-widest rounded-md shadow-xl whitespace-nowrap pointer-events-none">Corporate Office</div>
+            </div>
+        `,
+        className: 'office-map-marker',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+    });
+};
+
+// --- MAP LAYER ---
+export const MapLayer = ({ pickupPos, destinationPos, officePos, mapCenter, bookingStep, MapEventsHandler, ChangeView, onMapMove, onReverseGeocode, onMoveStart, isDragging, onCurrentLocation }) => {
+    return (
+        <div className='absolute inset-0 z-0 bg-slate-50'>
+            <MapContainer 
+                className='z-0'
+                center={isValidPos(mapCenter) ? mapCenter : [28.6273, 77.3725]} 
+                zoom={15} 
+                style={{ height: '100%', width: '100%' }} 
+                zoomControl={false}
+                dragging={bookingStep !== 'confirmSummary'}
+                scrollWheelZoom={bookingStep !== 'confirmSummary'}
+                doubleClickZoom={bookingStep !== 'confirmSummary'}
+                touchZoom={bookingStep !== 'confirmSummary'}
+            >
+                <TileLayer url="https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png" />
+                <MapEventsHandler 
+                    onMoveStart={onMoveStart}
+                    onMoveEnd={onMapMove}
+                    onReverseGeocode={onReverseGeocode}
+                    bookingStep={bookingStep}
+                />
+                <ChangeView center={mapCenter} />
+
+                {/* Persistent Office Marker & Radius - Always Visible */}
+                {isValidPos(officePos) && (
+                    <>
+                        <Circle 
+                            center={officePos} 
+                            radius={200} 
+                            pathOptions={{ 
+                                color: '#2563eb', 
+                                fillColor: '#2563eb', 
+                                fillOpacity: 0.1, 
+                                weight: 2, 
+                                dashArray: '8, 12' 
+                            }} 
+                            eventHandlers={{
+                                click: () => onMapMove({ target: { getCenter: () => L.latLng(officePos) } })
+                            }}
+                        />
+                        <Marker 
+                            position={officePos} 
+                            icon={getOfficeMarkerIcon()} 
+                            eventHandlers={{
+                                click: () => onMapMove({ target: { getCenter: () => L.latLng(officePos) } })
+                            }}
+                        />
+                    </>
+                )}
+
+                {/* In summary mode, show BOTH pickup and destination pins if available */}
+                {bookingStep === 'confirmSummary' && isValidPos(pickupPos) && (
+                    <Marker position={pickupPos} icon={getMarkerIcon()} />
+                )}
+                {bookingStep === 'confirmSummary' && isValidPos(destinationPos) && (
+                    <Marker position={destinationPos} icon={getMarkerIcon()} />
+                )}
+            </MapContainer>
+
+            {/* Bullseye Screen Center Pin */}
+            {(bookingStep === 'pickingPickup' || bookingStep === 'pickingDestination') && (
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-none flex items-center justify-center w-8 h-8">
+                    <div className="absolute inset-0 rounded-full border-[5px] border-orange-500 shadow-sm"></div>
+                    <div className="w-1.5 h-1.5 bg-orange-500 rounded-full shadow-[0_0_6px_rgba(249,115,22,1)]"></div>
+                </div>
+            )}
 
         {/* FABs */}
         <button 
             onClick={onCurrentLocation}
-            className='absolute bottom-32 right-6 z-20 w-14 h-14 bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl flex items-center justify-center text-slate-800 active:scale-90 transition-all border border-white/20 hover:bg-white hover:shadow-3xl hover:text-orange-500'
+            className='absolute bottom-32 right-6 z-40 w-14 h-14 bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl flex items-center justify-center text-slate-800 active:scale-90 transition-all border border-white/20 hover:bg-white hover:shadow-3xl hover:text-orange-500'
         >
             <svg className='w-6 h-6 transition-transform group-hover:rotate-45' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z' /><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M15 11a3 3 0 11-6 0 3 3 0 016 0z' /></svg>
         </button>
     </div>
-);
+    );
+};
 
 // --- HEADER ---
 export const LocationHeader = ({ 
@@ -65,10 +128,20 @@ export const LocationHeader = ({
                 </button>
                 <div className='flex-1 relative'>
                     <input 
-                        type='text' value={localQuery} 
+                        type='text' 
+                        value={isTyping ? localQuery : displayText} 
                         onChange={(e) => { setLocalQuery(e.target.value); setIsTyping(true); }}
-                        onFocus={() => setIsTyping(true)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                        onFocus={(e) => { setLocalQuery(displayText); setIsTyping(true); e.target.select(); }}
+                        onBlur={() => { if (!isFetchingSuggestions) setTimeout(() => setIsTyping(false), 200); }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                if (suggestions && suggestions.length > 0) {
+                                    onSuggestionClick(suggestions[0]);
+                                } else {
+                                    handleSearch();
+                                }
+                            }
+                        }}
                         className='w-full h-12 bg-white/40 border border-white/20 rounded-2xl px-5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-400/50 placeholder-slate-400'
                         placeholder={bookingStep === 'pickingPickup' ? 'Enter Pickup' : 'Enter Destination'}
                     />
@@ -85,13 +158,13 @@ export const LocationHeader = ({
                         </div>
                     ) : (
                         suggestions.map((s, i) => (
-                            <div key={i} onClick={() => onSuggestionClick(s)} className='p-4 hover:bg-white/80 rounded-2xl cursor-pointer transition-all flex items-center gap-4 group'>
+                            <div key={i} onMouseDown={(e) => { e.preventDefault(); onSuggestionClick(s); }} className='p-4 hover:bg-white/80 rounded-2xl cursor-pointer transition-all flex items-center gap-4 group'>
                                 <div className='w-10 h-10 bg-slate-900/5 rounded-xl flex items-center justify-center text-slate-600 group-hover:bg-orange-500 group-hover:text-white transition-all'>
                                     <svg className='w-5 h-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path d='M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z' strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} /></svg>
                                 </div>
                                 <div className='flex-1 min-w-0'>
                                     <p className='text-sm font-bold text-slate-800 truncate'>{s.addr}</p>
-                                    <p className='text-[10px] font-black text-slate-600 uppercase tracking-widest opacity-80'>Select Location</p>
+                                    <p className='text-[10px] font-black text-slate-600 uppercase tracking-widest opacity-80'>{s.subtext}</p>
                                 </div>
                             </div>
                         ))
@@ -105,37 +178,48 @@ export const LocationHeader = ({
 /**
  * Shared Map Component Wrapper for usage inside Views
  */
-const MapBackground = ({ pickup, destination, mapCenter, bookingStep, onMapMove, onReverseGeocode, onMoveStart, isDragging, onCurrentLocation, MapEventsHandler, ChangeView }) => (
-    <div className='absolute inset-0 z-0'>
-        <MapLayer 
-            pickupPos={pickup?.pos} 
-            destinationPos={destination?.pos} 
-            mapCenter={mapCenter} 
-            bookingStep={bookingStep} 
-            onMapMove={onMapMove} 
-            onReverseGeocode={onReverseGeocode}
-            onMoveStart={onMoveStart} 
-            isDragging={isDragging}
-            onCurrentLocation={onCurrentLocation}
-            MapEventsHandler={MapEventsHandler}
-            ChangeView={ChangeView}
-        />
-    </div>
-);
+const MapBackground = ({ pickup, destination, officePos, mapCenter, currentGPSPos, bookingStep, onMapMove, onReverseGeocode, onMoveStart, isDragging, onCurrentLocation, MapEventsHandler, ChangeView }) => {
+    // In summary mode, the map is always centered on the current GPS position, clean and silent.
+    const activeCenter = bookingStep === 'confirmSummary' && isValidPos(currentGPSPos) 
+        ? currentGPSPos 
+        : mapCenter;
+
+    return (
+        <div className='absolute inset-0 z-0'>
+            <MapLayer 
+                pickupPos={pickup?.pos} 
+                destinationPos={destination?.pos} 
+                officePos={officePos}
+                mapCenter={activeCenter} 
+                bookingStep={bookingStep} 
+                onMapMove={onMapMove} 
+                onReverseGeocode={onReverseGeocode}
+                onMoveStart={onMoveStart} 
+                isDragging={isDragging}
+                onCurrentLocation={onCurrentLocation}
+                MapEventsHandler={MapEventsHandler}
+                ChangeView={ChangeView}
+            />
+        </div>
+    );
+};
 
 // --- HOME VIEW PAGE ---
 export const HomeViewPage = ({ 
-    onShortcutClick, officeAddress, officePos, homeAddress, homePos, mapCenter,
-    savedLocations = [], recentLocations = [], onRemoveFavorite 
+    onShortcutClick, officeAddress, officePos, homeAddress, homePos, currentGPSPos,
+    gpsStatus, savedLocations = [], recentLocations = [], onRemoveFavorite 
 }) => {
     const getDistance = (pos) => {
         try {
-            if (!isValidPos(pos) || !isValidPos(mapCenter)) return '0.0';
-            const from = L.latLng(mapCenter[0], mapCenter[1]);
-            const to = L.latLng(pos[0], pos[1]);
-            return (from.distanceTo(to) / 1000).toFixed(1);
+            if (gpsStatus === 'searching') return 'Detecting...';
+            if (gpsStatus === 'error' || !isValidPos(currentGPSPos) || !isValidPos(pos)) return '-';
+            
+            // Calculate real distance using [Lat, Lng]
+            const meters = calcDistance(currentGPSPos, pos);
+            const dist = (meters / 1000).toFixed(1);
+            return `${dist} KM`;
         } catch {
-            return '0.0';
+            return '-';
         }
     };
 
@@ -169,34 +253,38 @@ export const HomeViewPage = ({
                 </div>
             </div>
 
-            {/* Favourites - Horizontal Scroll */}
+            {/* Favourites - Vertical List */}
             {savedLocations.length > 0 && (
-                <div className='mb-10'>
-                    <h2 className='px-7 mb-4 text-[10px] font-black text-slate-800 uppercase tracking-[0.2em] opacity-60'>Favorites</h2>
-                    <div className='flex gap-4 overflow-x-auto px-6 pb-4 no-scrollbar'>
+                <div className='px-6 mb-10'>
+                    <h2 className='px-1 mb-4 text-[10px] font-black text-slate-800 uppercase tracking-[0.2em] opacity-60'>Favorites</h2>
+                    <div className='space-y-3'>
                         {savedLocations.map((loc, i) => (
                             <div 
                                 key={i} 
                                 onClick={() => onShortcutClick('saved', loc)}
-                                className='flex-none w-32 group cursor-pointer'
+                                className='bg-white/40 backdrop-blur-3xl rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:bg-white transition-all active:scale-[0.98] border border-white/60 shadow-sm hover:shadow-md'
                             >
-                                 <div className='w-32 h-32 bg-white/40 backdrop-blur-3xl rounded-[2.5rem] border border-white/60 shadow-sm flex flex-col items-center justify-center gap-3 group-hover:bg-white group-hover:shadow-xl transition-all active:scale-95 relative overflow-hidden'>
-                                    {/* Delete Button */}
+                                <div className='w-10 h-10 bg-orange-500/10 text-orange-500 rounded-xl flex items-center justify-center shrink-0'>
+                                    <svg className='w-5 h-5' fill='currentColor' viewBox='0 0 24 24'><path d='M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.175 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z'/></svg>
+                                </div>
+                                <div className='flex-1 min-w-0'>
+                                    <p className='text-sm font-bold text-slate-900 truncate'>{loc.name || loc.addr.split(',')[0]}</p>
+                                    <p className='text-[10px] font-black text-slate-600 uppercase tracking-widest opacity-60'>{loc.addr.split(',').slice(1,2)}</p>
+                                </div>
+                                <div className='flex items-center gap-3'>
+                                    <div className='text-right shrink-0'>
+                                        <span className='text-[9px] font-black text-slate-800 bg-slate-900/5 px-2 py-1 rounded-full'>{getDistance(loc.pos)}</span>
+                                    </div>
                                     <button 
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             onRemoveFavorite(loc.addr);
                                         }}
-                                        className='absolute top-2 right-2 w-7 h-7 bg-slate-900/5 hover:bg-rose-500 hover:text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 active:scale-90'
+                                        className='w-8 h-8 bg-slate-900/5 hover:bg-rose-500 hover:text-white rounded-lg flex items-center justify-center transition-all active:scale-90'
                                         title="Remove favorite"
                                     >
-                                        <svg className='w-3.5 h-3.5' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path d='M6 18L18 6M6 6l12 12' strokeLinecap='round' strokeLinejoin='round' strokeWidth={3} /></svg>
+                                        <svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path d='M6 18L18 6M6 6l12 12' strokeLinecap='round' strokeLinejoin='round' strokeWidth={3} /></svg>
                                     </button>
-                                    
-                                    <div className='w-10 h-10 bg-orange-500/10 text-orange-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform'>
-                                        <svg className='w-5 h-5' fill='currentColor' viewBox='0 0 24 24'><path d='M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.175 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z'/></svg>
-                                    </div>
-                                    <span className='text-[11px] font-black text-slate-900 text-center px-2 truncate w-full'>{loc.name}</span>
                                 </div>
                             </div>
                         ))}
@@ -223,7 +311,7 @@ export const HomeViewPage = ({
                                     <p className='text-[10px] font-black text-slate-600 uppercase tracking-widest opacity-60'>{loc.addr.split(',').slice(1,2)}</p>
                                 </div>
                                 <div className='text-right shrink-0'>
-                                    <span className='text-[9px] font-black text-slate-800 bg-slate-900/5 px-2 py-1 rounded-full'>{getDistance(loc.pos)} KM</span>
+                                    <span className='text-[9px] font-black text-slate-800 bg-slate-900/5 px-2 py-1 rounded-full'>{getDistance(loc.pos)}</span>
                                 </div>
                             </div>
                         ))}
@@ -238,12 +326,13 @@ export const LocationPickerView = ({
     bookingStep, onBack, pickup, setPickup, destination, setDestination, mapCenter, setMapCenter, 
     localQuery, setLocalQuery, isTyping, setIsTyping, handleSearch, isFetchingSuggestions, 
     suggestions, onSuggestionClick, isDragging, setIsDragging, onCurrentLocation, reverseGeocode, 
-    MapEventsHandler, ChangeView, onSaveLocation 
+    MapEventsHandler, ChangeView, onSaveLocation, officePos,
+    onConfirmPin
 }) => {
     return (
         <div className='w-full h-dvh bg-white flex flex-col relative font-sans select-none overflow-hidden'>
             <MapBackground 
-                pickup={pickup} destination={destination} mapCenter={mapCenter} 
+                pickup={pickup} destination={destination} officePos={officePos} mapCenter={mapCenter} 
                 bookingStep={bookingStep} onMapMove={setMapCenter} 
                 onReverseGeocode={reverseGeocode} onMoveStart={() => setIsDragging(true)} 
                 isDragging={isDragging} onCurrentLocation={onCurrentLocation}
@@ -259,29 +348,54 @@ export const LocationPickerView = ({
                 suggestions={suggestions} onSuggestionClick={onSuggestionClick}
                 onSaveLocation={onSaveLocation}
             />
+
+            {/* Confirm Floating Button */}
+            {!isTyping && (
+                <div className='absolute bottom-10 left-1/2 -translate-x-1/2 z-40 w-full max-w-xs px-6 animate-in slide-in-from-bottom duration-500'>
+                    <button 
+                        onClick={onConfirmPin}
+                        disabled={isDragging}
+                        className='w-full py-5 bg-slate-900 text-white rounded-[2rem] font-black text-[10px] uppercase tracking-[0.3em] shadow-[0_20px_40px_rgba(15,23,42,0.3)] active:scale-95 transition-all flex items-center justify-center gap-3 group disabled:opacity-70 disabled:cursor-wait'
+                    >
+                        {isDragging ? (
+                            <div className='flex items-center gap-2'>
+                                <div className='w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin'></div>
+                                <span>Updating Location...</span>
+                            </div>
+                        ) : (
+                            <>
+                                <span>Confirm {bookingStep === 'pickingPickup' ? 'Pickup' : 'Destination'}</span>
+                                <svg className='w-4 h-4 group-hover:translate-x-1 transition-transform' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path d='M17 8l4 4m0 0l-4 4m4-4H3' strokeLinecap='round' strokeLinejoin='round' strokeWidth={3} /></svg>
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
+
         </div>
     );
 };
 
 // --- CONFIRMATION VIEW ---
 export const ConfirmationView = ({ 
-    officeAddress, pickup, destination, scheduledTime, onEditTime, isSolo, onToggleSolo, 
-    onEditPickup, onEditDestination, onConfirm, loading, mapCenter, 
+    officeAddress, pickup, destination, scheduledTime, isSolo, onToggleSolo, 
+    onEditPickup, onEditDestination, onConfirm, loading, mapCenter, currentGPSPos,
     onSchedulingClick, MapEventsHandler, ChangeView,
     invitedEmployees, onAddInvite, onRemoveInvite, onBack,
-    isOfficeFixed, onSaveLocation, savedLocations
+    isOfficeFixed, onSaveLocation, onRemoveLocation, savedLocations, officePos
 }) => {
     const { showToast } = useUI();
 
     const handleOfficeRuleClick = () => {
         const side = isOfficeFixed === 'pickup' ? 'pickup' : 'destination';
-        showToast(`For office rides, the ${side} is fixed to your office`, 'info', 1500);
+        showToast(`For office rides, the ${side} is fixed to your office area`, 'info', 1500);
     };
 
     return (
         <div className='w-full h-dvh bg-white flex flex-col relative font-sans select-none overflow-hidden'>
             <MapBackground 
-                pickup={pickup} destination={destination} mapCenter={mapCenter} 
+                pickup={pickup} destination={destination} officePos={officePos} mapCenter={mapCenter} 
+                currentGPSPos={currentGPSPos}
                 bookingStep='confirmSummary' onMapMove={() => {}} 
                 onReverseGeocode={() => {}} onMoveStart={() => {}} 
                 isDragging={false} onCurrentLocation={() => {}}
@@ -303,6 +417,7 @@ export const ConfirmationView = ({
                 onOfficeRuleClick={handleOfficeRuleClick}
                 isOfficeFixed={isOfficeFixed}
                 onSaveLocation={onSaveLocation}
+                onRemoveLocation={onRemoveLocation}
                 savedLocations={savedLocations}
             />
         </div>
