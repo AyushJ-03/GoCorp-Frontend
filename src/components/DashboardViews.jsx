@@ -104,12 +104,14 @@ export const MapLayer = ({ pickupPos, destinationPos, officePos, mapCenter, book
             )}
 
         {/* FABs */}
-        <button 
-            onClick={onCurrentLocation}
-            className='absolute bottom-32 right-6 z-40 w-14 h-14 bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl flex items-center justify-center text-slate-800 active:scale-90 transition-all border border-white/20 hover:bg-white hover:shadow-3xl hover:text-orange-500'
-        >
-            <svg className='w-6 h-6 transition-transform group-hover:rotate-45' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z' /><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M15 11a3 3 0 11-6 0 3 3 0 016 0z' /></svg>
-        </button>
+        {bookingStep !== 'confirmSummary' && (
+            <button 
+                onClick={onCurrentLocation}
+                className='absolute bottom-32 right-6 z-40 w-14 h-14 bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl flex items-center justify-center text-slate-800 active:scale-90 transition-all border border-white/20 hover:bg-white hover:shadow-3xl hover:text-orange-500'
+            >
+                <svg className='w-6 h-6 transition-transform group-hover:rotate-45' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z' /><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M15 11a3 3 0 11-6 0 3 3 0 016 0z' /></svg>
+            </button>
+        )}
     </div>
     );
 };
@@ -382,7 +384,8 @@ export const ConfirmationView = ({
     onEditPickup, onEditDestination, onConfirm, loading, mapCenter, currentGPSPos,
     onSchedulingClick, MapEventsHandler, ChangeView,
     invitedEmployees, onAddInvite, onRemoveInvite, onBack,
-    isOfficeFixed, onSaveLocation, onRemoveLocation, savedLocations, officePos
+    isOfficeFixed, onSaveLocation, onRemoveLocation, savedLocations, officePos,
+    distance
 }) => {
     const { showToast } = useUI();
 
@@ -419,6 +422,7 @@ export const ConfirmationView = ({
                 onSaveLocation={onSaveLocation}
                 onRemoveLocation={onRemoveLocation}
                 savedLocations={savedLocations}
+                distance={distance}
             />
         </div>
     );

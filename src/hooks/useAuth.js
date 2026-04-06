@@ -42,7 +42,18 @@ export const useAuth = (type = 'login') => {
       });
       const { user, token } = response.data.data;
       login(user, token);
-      navigate('/location-access');
+      
+      // Check if location permission is already granted
+      if ('permissions' in navigator) {
+        const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
+        if (permissionStatus.state === 'granted') {
+          navigate('/dashboard');
+        } else {
+          navigate('/location-access');
+        }
+      } else {
+        navigate('/location-access');
+      }
     } catch (err) {
       if (err.isServerDown) {
         setIsServerOffline(true);

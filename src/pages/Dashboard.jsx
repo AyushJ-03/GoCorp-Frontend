@@ -398,6 +398,15 @@ const Dashboard = () => {
     };
 
     const handleConfirmBooking = async () => {
+        // Pre-flight validation: Ensure time hasn't passed while waiting
+        const now = new Date();
+        if (scheduledTime < new Date(now.getTime() - 60000)) {
+            showToast('Rides cannot be scheduled in the past. Please update time.', 'error');
+            setBookingStep('scheduling');
+            setShowConfirmBooking(false);
+            return;
+        }
+
         setBookingLoading(true);
         try {
             await api.post('/ride/book-ride', {
@@ -605,6 +614,7 @@ const Dashboard = () => {
             onRemoveLocation={handleRemoveFavorite}
             savedLocations={user.saved_locations || []}
             officePos={officePos}
+            distance={calcDistance(pickup.pos, destination.pos)}
         />;
     }
  else if (bookingStep === 'scheduling') {
