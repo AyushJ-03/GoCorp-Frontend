@@ -1,6 +1,6 @@
 import React from 'react';
 
-const PersonalForm = ({ form, onChange, onSubmit, loading }) => {
+const PersonalForm = ({ form, onChange, onSubmit, onOpenMapPicker, loading }) => {
     return (
         <div className='bg-white/40 backdrop-blur-3xl rounded-[3rem] p-8 shadow-2xl border border-white/60 mb-8'>
             <div className='flex items-center gap-3 mb-8 ml-1'>
@@ -51,6 +51,34 @@ const PersonalForm = ({ form, onChange, onSubmit, loading }) => {
                         <div className='absolute left-5 top-1/2 -translate-y-1/2 text-slate-400'>
                             <svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z' /></svg>
                         </div>
+                    </div>
+                </div>
+
+                <div className='relative group'>
+                    <label className='absolute -top-2.5 left-4 px-2 bg-blue-50/50 backdrop-blur-md text-[8px] font-black text-indigo-500 tracking-[0.2em] uppercase transition-all group-focus-within:text-orange-500 z-10'>
+                        Home Address
+                    </label>
+                    <div className='relative flex items-center gap-3'>
+                        <div className='flex-1 relative'>
+                            <input 
+                                type='text' 
+                                value={form.home_address} 
+                                readOnly
+                                onClick={onOpenMapPicker}
+                                className='w-full pl-12 pr-5 py-4 bg-white/60 backdrop-blur-2xl border border-white/80 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none cursor-pointer hover:bg-white/80 transition-all placeholder:text-slate-300' 
+                                placeholder='Tap to set on map' 
+                            />
+                            <div className='absolute left-5 top-1/2 -translate-y-1/2 text-slate-400'>
+                                <svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' /></svg>
+                            </div>
+                        </div>
+                        <button 
+                            type='button'
+                            onClick={onOpenMapPicker}
+                            className='w-14 h-14 bg-slate-950 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg active:scale-90 transition-all hover:bg-black group'
+                        >
+                            <svg className='w-6 h-6 group-hover:scale-110 transition-transform' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z' /></svg>
+                        </button>
                     </div>
                 </div>
 

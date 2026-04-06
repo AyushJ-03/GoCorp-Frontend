@@ -9,6 +9,7 @@ import ProfileHeader from '../components/profile/ProfileHeader';
 import ProfileStats from '../components/profile/ProfileStats';
 import SavedLocations from '../components/profile/SavedLocations';
 import PersonalForm from '../components/profile/PersonalForm';
+import MapLocationPicker from '../components/profile/MapLocationPicker';
 
 /**
  * Profile - Refactored Premium User Portal.
@@ -26,11 +27,14 @@ const Profile = () => {
     const [showLogout, setShowLogout] = useState(false);
     const [showDelete, setShowDelete] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
 
     const [form, setForm] = useState({
         first_name: user?.name?.first_name || '',
         last_name: user?.name?.last_name || '',
         contact: user?.contact || '',
+        home_address: user?.home_address?.addr || '',
+        home_pos: user?.home_address?.pos || [28.6273, 77.3725],
     });
 
     const fetchSummary = useCallback(async () => {
@@ -47,7 +51,11 @@ const Profile = () => {
     }, [showToast]);
 
     useEffect(() => {
-        setShowBottomNav(true);
+        // Toggle bottom navigation when map picker is open
+        setShowBottomNav(!isMapPickerOpen);
+    }, [setShowBottomNav, isMapPickerOpen]);
+
+    useEffect(() => {
         fetchSummary();
         
         // Sync local form with user context on mount
@@ -56,9 +64,11 @@ const Profile = () => {
                 first_name: user.name?.first_name || '',
                 last_name: user.name?.last_name || '',
                 contact: user.contact || '',
+                home_address: user.home_address?.addr || '',
+                home_pos: user.home_address?.pos || [28.6273, 77.3725],
             });
         }
-    }, [setShowBottomNav, fetchSummary, user]);
+    }, [fetchSummary, user]);
 
     const handleUpdateProfile = async (e) => {
         if (e) e.preventDefault();
@@ -69,7 +79,11 @@ const Profile = () => {
                     first_name: form.first_name,
                     last_name: form.last_name
                 },
-                contact: form.contact
+                contact: form.contact,
+                home_address: { 
+                    addr: form.home_address,
+                    pos: form.home_pos 
+                }
             });
             // Update Global User Context
             login(res.data.data.user, localStorage.getItem('token'));
@@ -96,6 +110,16 @@ const Profile = () => {
         } catch (err) {
             showToast('Failed to remove location', 'error');
         }
+    };
+
+    const handleConfirmOnMap = ({ addr, pos }) => {
+        setForm(prev => ({
+            ...prev,
+            home_address: addr,
+            home_pos: pos
+        }));
+        setIsMapPickerOpen(false);
+        showToast('Address selected from map', 'success');
     };
 
     if (loading && !summary) {
@@ -155,6 +179,7 @@ const Profile = () => {
                     form={form} 
                     onChange={setForm} 
                     onSubmit={handleUpdateProfile} 
+                    onOpenMapPicker={() => setIsMapPickerOpen(true)}
                     loading={saveLoading}
                 />
 
@@ -190,6 +215,15 @@ const Profile = () => {
                 confirmText='Remove' 
                 isDangerous={true}
             />
+
+            {/* Map Location Picker */}
+            {isMapPickerOpen && (
+                <MapLocationPicker 
+                    initialPos={form.home_pos}
+                    onConfirm={handleConfirmOnMap}
+                    onCancel={() => setIsMapPickerOpen(false)}
+                />
+            )}
         </div>
     );
 };
