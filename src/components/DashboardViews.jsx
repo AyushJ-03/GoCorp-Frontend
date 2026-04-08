@@ -36,13 +36,18 @@ const getOfficeMarkerIcon = () => {
 };
 
 // --- MAP LAYER ---
-export const MapLayer = ({ pickupPos, destinationPos, officePos, polyline, mapCenter, bookingStep, MapEventsHandler, ChangeView, onMapMove, onReverseGeocode, onMoveStart, isDragging, onCurrentLocation }) => {
+export const MapLayer = ({ 
+    pickupPos, destinationPos, officePos, polyline, mapCenter, 
+    bookingStep, MapEventsHandler, ChangeView, onMapMove, 
+    onReverseGeocode, onMoveStart, isDragging, onCurrentLocation,
+    participants = [], currentRideId = null
+}) => {
     return (
         <div className='absolute inset-0 z-0 bg-slate-50'>
             <MapContainer 
                 className='z-0'
                 center={isValidPos(mapCenter) ? mapCenter : [28.6273, 77.3725]} 
-                zoom={15} 
+                zoom={14} 
                 style={{ height: '100%', width: '100%' }} 
                 zoomControl={false}
                 dragging={bookingStep !== 'confirmSummary'}
@@ -59,27 +64,26 @@ export const MapLayer = ({ pickupPos, destinationPos, officePos, polyline, mapCe
                 />
                 <ChangeView center={mapCenter} />
 
-                {/* Real Route Polyline (OSRM) */}
+                {/* Real Route Polyline (OSRM) - Now Blue & Solid */}
                 {polyline && polyline.length > 0 && (
                     <Polyline 
                         positions={polyline} 
                         pathOptions={{ 
-                            color: '#4f46e5', 
-                            weight: 6, 
-                            opacity: 0.8,
+                            color: '#2563eb', 
+                            weight: 7, 
+                            opacity: 0.9,
                             lineJoin: 'round',
-                            lineCap: 'round',
-                            dashArray: bookingStep === 'confirmSummary' ? null : '10, 10'
+                            lineCap: 'round'
                         }} 
                     />
                 )}
 
-                {/* Persistent Office Marker & Radius - Always Visible */}
+                {/* Corporate Office Marker */}
                 {isValidPos(officePos) && (
                     <>
                         <Circle 
                             center={officePos} 
-                            radius={200} 
+                            radius={250} 
                             pathOptions={{ 
                                 color: '#2563eb', 
                                 fillColor: '#2563eb', 
@@ -87,24 +91,45 @@ export const MapLayer = ({ pickupPos, destinationPos, officePos, polyline, mapCe
                                 weight: 2, 
                                 dashArray: '8, 12' 
                             }} 
-                            eventHandlers={{
-                                click: () => onMapMove({ target: { getCenter: () => L.latLng(officePos) } })
-                            }}
                         />
                         <Marker 
                             position={officePos} 
                             icon={getOfficeMarkerIcon()} 
-                            eventHandlers={{
-                                click: () => onMapMove({ target: { getCenter: () => L.latLng(officePos) } })
-                            }}
                         />
                     </>
                 )}
 
-                {/* In summary mode, show BOTH pickup and destination pins if available */}
-                {bookingStep === 'confirmSummary' && isValidPos(pickupPos) && (
-                    <Marker position={pickupPos} icon={getMarkerIcon()} />
+                {/* Multi-Participant Markers */}
+                {participants.length > 0 ? (
+                    participants.map((p, idx) => {
+                        const coords = p.pickup_location?.coordinates;
+                        if (!coords || !Array.isArray(coords)) return null;
+
+                        // LEAFLET SWAP: Backend is [Lng, Lat], Frontend needs [Lat, Lng]
+                        const leafletPos = [coords[1], coords[0]];
+                        const isCurrentUser = p.ride_id?.toString() === currentRideId?.toString();
+
+                        return (
+                            <Marker 
+                                key={p.ride_id || idx}
+                                position={leafletPos} 
+                                icon={isCurrentUser ? getMarkerIcon() : L.divIcon({
+                                    html: `<div class="w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-md"></div>`,
+                                    className: 'other-participant-marker',
+                                    iconSize: [16, 16],
+                                    iconAnchor: [8, 8]
+                                })} 
+                            />
+                        );
+                    })
+                ) : (
+                    // Fallback for single-user booking flow
+                    bookingStep === 'confirmSummary' && isValidPos(pickupPos) && (
+                        <Marker position={pickupPos} icon={getMarkerIcon()} />
+                    )
                 )}
+
+                {/* Destination Pin (Office/Home) */}
                 {bookingStep === 'confirmSummary' && isValidPos(destinationPos) && (
                     <Marker position={destinationPos} icon={getMarkerIcon()} />
                 )}

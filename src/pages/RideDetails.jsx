@@ -163,6 +163,8 @@ const RideDetails = () => {
                         onMoveStart={() => {}}
                         isDragging={false}
                         onCurrentLocation={() => {}}
+                        participants={ride.group_participants || []}
+                        currentRideId={id}
                     />
                     
                     {/* Status Badge Over Map */}
@@ -290,16 +292,27 @@ const RideDetails = () => {
                   <div className='bg-white/40 backdrop-blur-3xl rounded-[2.5rem] p-8 border border-white/60 shadow-xl'>
                       <div className='flex items-center justify-between mb-8'>
                           <h3 className='text-[10px] font-black text-slate-800 uppercase tracking-[0.3em]'>Participants</h3>
-                          <span className='px-3 py-1 bg-slate-900/5 text-[9px] font-black tracking-widest uppercase rounded-full border border-slate-900/5'>Group Manifest</span>
+                          <span className='px-3 py-1 bg-slate-900/5 text-[9px] font-black tracking-widest uppercase rounded-full border border-slate-900/5'>
+                            {ride.group_participants ? `Group Manifest (${ride.group_participants.length})` : 'Individual Booking'}
+                          </span>
                       </div>
                       <div className='flex flex-wrap gap-6'>
-                          <div className='flex flex-col items-center gap-3 group'>
-                              <div className='w-14 h-14 bg-indigo-500 text-white rounded-[1.2rem] flex items-center justify-center font-black text-sm border-2 border-white shadow-lg group-hover:scale-110 transition-transform'>
-                                  {ride.employee_id?.name?.first_name?.charAt(0)}{ride.employee_id?.name?.last_name?.charAt(0)}
+                          {(ride.group_participants || [{ ...ride.employee_id, is_requester: true }]).map((emp, idx) => (
+                              <div key={emp._id || idx} className={`flex flex-col items-center gap-3 group ${!emp.is_requester ? 'opacity-70 hover:opacity-100' : ''} transition-all text-center`}>
+                                  <div className={`w-14 h-14 ${emp.is_requester ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-500'} rounded-[1.2rem] flex items-center justify-center font-black text-sm border-2 border-white shadow-lg group-hover:scale-110 transition-transform overflow-hidden`}>
+                                      {emp.profile_image ? (
+                                        <img src={emp.profile_image} alt={emp.name?.first_name} className='w-full h-full object-cover' />
+                                      ) : (
+                                        <span>{emp.name?.first_name?.charAt(0)}{emp.name?.last_name?.charAt(0)}</span>
+                                      )}
+                                  </div>
+                                  <p className={`text-[9px] font-black ${emp.is_requester ? 'text-indigo-500' : 'text-slate-400'} uppercase tracking-widest`}>
+                                    {emp.is_requester ? 'Requester' : 'Partner'}
+                                  </p>
                               </div>
-                              <p className='text-[9px] font-black text-indigo-500 uppercase tracking-widest'>Owner</p>
-                          </div>
-                          {ride.invited_employee_ids?.map(emp => (
+                          ))}
+                          {/* If single ride has guests but no group participants yet (local view) */}
+                          {!ride.group_participants && ride.invited_employee_ids?.map(emp => (
                               <div key={emp._id} className='flex flex-col items-center gap-3 group opacity-70 hover:opacity-100 transition-opacity text-center'>
                                   <div className='w-14 h-14 bg-slate-100 text-slate-500 rounded-[1.2rem] flex items-center justify-center font-black text-sm border-2 border-white shadow-sm group-hover:scale-110 transition-transform'>
                                       {emp.name?.first_name?.charAt(0)}{emp.name?.last_name?.charAt(0)}
