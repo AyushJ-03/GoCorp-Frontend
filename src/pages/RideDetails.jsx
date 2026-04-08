@@ -1,21 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useUser } from '../context/UserContext';
 import { useUI } from '../context/UIContext';
 import ActionModal from '../components/common/ActionModal';
+import { MapLayer } from '../components/DashboardViews';
+import { MapEventsHandler, ChangeView } from './Dashboard';
+import { isValidPos } from '../utils/geoUtils';
 
 /**
- * RideDetails - A premium, light-mode glassmorphic ticket view.
- * Features:
- * - 4-digit Ride OTP for driver verification.
- * - Aligned with the app's Slate-50/Blue-50 theme.
- * - Interaction-rich layouts for participants and cancellation.
+ * RideDetails - Enhanced with Live Map & OSRM Polling
  */
 const RideDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { setShowBottomNav } = useUser();
+    const { user, setShowBottomNav } = useUser();
     const { showToast } = useUI();
 
     const [ride, setRide] = useState(null);
@@ -23,23 +22,41 @@ const RideDetails = () => {
     const [cancelLoading, setCancelLoading] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [selectedReason, setSelectedReason] = useState('Change of plans');
+    
+    // Polling State
+    const pollingRef = useRef(null);
 
-    const fetchRide = useCallback(async () => {
+    const fetchRide = useCallback(async (silent = false) => {
         try {
-            setLoading(true);
+            if (!silent) setLoading(true);
             const res = await api.get(`/ride/${id}`);
-            setRide(res.data?.data);
+            const data = res.data?.data;
+            setRide(data);
+            
+            // Stop polling if ride is final (COMPLETED, CANCELLED) or in a stable state we don't care about
+            if (["COMPLETED", "CANCELLED", "DROPPED_OFF", "REJECTED"].includes(data.status)) {
+                if (pollingRef.current) clearInterval(pollingRef.current);
+            }
         } catch (err) {
-            showToast('Failed to load ride details', 'error');
+            if (!silent) showToast('Failed to load ride details', 'error');
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, [id, showToast]);
 
     useEffect(() => {
         setShowBottomNav(false);
         fetchRide();
-        return () => setShowBottomNav(true);
+
+        // Start polling for live clustering/batching updates
+        pollingRef.current = setInterval(() => {
+            fetchRide(true);
+        }, 10000);
+
+        return () => {
+            setShowBottomNav(true);
+            if (pollingRef.current) clearInterval(pollingRef.current);
+        };
     }, [id, setShowBottomNav, fetchRide]);
 
     const handleCancel = useCallback(async () => {
@@ -87,6 +104,21 @@ const RideDetails = () => {
     const isUpcoming = ["PENDING", "IN_CLUSTERING", "CLUSTERED", "BOOKED_SOLO", "ACCEPTED", "ARRIVED"].includes(ride.status);
     const showOTP = ["ACCEPTED", "ARRIVED", "STARTED", "PENDING", "IN_CLUSTERING", "CLUSTERED", "BOOKED_SOLO"].includes(ride.status);
 
+    // Extract real-time map data
+    const pickupPos = ride.pickup_location?.coordinates 
+        ? [ride.pickup_location.coordinates[1], ride.pickup_location.coordinates[2] || ride.pickup_location.coordinates[0]] 
+        : null;
+    // Wait, MongoDB is [lng, lat]. Let's be consistent.
+    const getPos = (loc) => loc?.coordinates ? [loc.coordinates[1], loc.coordinates[0]] : null;
+    
+    const pPos = getPos(ride.pickup_location);
+    const dPos = getPos(ride.drop_location);
+    const officePos = getPos(ride.office_id?.office_location);
+    
+    // Extract polyline from either clustering or batching info
+    const rawPolyline = ride.batch?.pickup_polyline?.coordinates || ride.clustering?.pickup_polyline?.coordinates || [];
+    const polyline = rawPolyline.map(p => [p[1], p[0]]);
+
     return (
         <div className='min-h-screen bg-linear-to-b from-slate-50 to-blue-50 flex flex-col font-sans select-none pb-32 text-slate-900 relative overflow-x-hidden'>
             {/* Background Glows */}
@@ -115,6 +147,58 @@ const RideDetails = () => {
             {/* Main Content Area */}
             <main className='px-6 pt-10 space-y-8 max-w-lg mx-auto w-full'>
                 
+                {/* LIVE MAP VIEW */}
+                <div className='relative w-full h-80 rounded-[3rem] overflow-hidden border border-white/60 shadow-2xl animate-in zoom-in-95 duration-700'>
+                    <MapLayer 
+                        pickupPos={pPos}
+                        destinationPos={dPos}
+                        officePos={officePos}
+                        polyline={polyline}
+                        mapCenter={pPos || [28.6273, 77.3725]}
+                        bookingStep='confirmSummary'
+                        MapEventsHandler={MapEventsHandler}
+                        ChangeView={ChangeView}
+                        onMapMove={() => {}}
+                        onReverseGeocode={() => {}}
+                        onMoveStart={() => {}}
+                        isDragging={false}
+                        onCurrentLocation={() => {}}
+                    />
+                    
+                    {/* Status Badge Over Map */}
+                    <div className='absolute top-6 left-6 z-40 bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 flex items-center gap-2'>
+                        <div className={`w-2 h-2 rounded-full ${isUpcoming ? 'bg-indigo-400 animate-pulse' : 'bg-slate-400'}`}></div>
+                        <span className='text-[8px] font-black text-white uppercase tracking-widest'>{ride.status}</span>
+                    </div>
+                </div>
+
+                {/* CLUSTERING PROGRESS INDICATOR - Only show if we have data to avoid glitchy placeholders */}
+                {ride.status === 'IN_CLUSTERING' && ride.clustering && (
+                    <div className='bg-indigo-600 rounded-3xl p-6 shadow-xl border border-white/20 relative overflow-hidden group animate-in slide-in-from-top duration-500'>
+                        <div className='absolute inset-0 bg-linear-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000'></div>
+                        <div className='flex items-center justify-between gap-4'>
+                            <div className='flex-1'>
+                                <div className='flex items-center gap-3 mb-1'>
+                                    <div className='flex -space-x-3'>
+                                        {[1, 2, 3].map(i => (
+                                            <div key={i} className='w-8 h-8 rounded-full border-2 border-indigo-600 bg-indigo-400 flex items-center justify-center animate-pulse' style={{ animationDelay: `${i * 200}ms` }}>
+                                                <svg className='w-4 h-4 text-white/50' fill='currentColor' viewBox='0 0 24 24'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <h4 className='text-sm font-black text-white tracking-tight'>Optimizing Group</h4>
+                                </div>
+                                <p className='text-[10px] font-bold text-indigo-200 uppercase tracking-widest leading-none'>
+                                    Seeking {4 - (ride.clustering?.current_size || 0)} more partners...
+                                </p>
+                            </div>
+                            <div className='w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center'>
+                                <div className='w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin'></div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* OTP Section (Visual Centerpiece) */}
                 {showOTP && (
                     <div className='relative group animate-in zoom-in-95 duration-700'>

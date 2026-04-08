@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import L from 'leaflet';
-import { MapContainer, TileLayer, Marker, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Circle, Polyline } from 'react-leaflet';
 import { isValidPos, getDistance as calcDistance } from '../utils/geoUtils';
 import RideSummary from './RideSummary';
 import ActionModal from './common/ActionModal';
@@ -36,7 +36,7 @@ const getOfficeMarkerIcon = () => {
 };
 
 // --- MAP LAYER ---
-export const MapLayer = ({ pickupPos, destinationPos, officePos, mapCenter, bookingStep, MapEventsHandler, ChangeView, onMapMove, onReverseGeocode, onMoveStart, isDragging, onCurrentLocation }) => {
+export const MapLayer = ({ pickupPos, destinationPos, officePos, polyline, mapCenter, bookingStep, MapEventsHandler, ChangeView, onMapMove, onReverseGeocode, onMoveStart, isDragging, onCurrentLocation }) => {
     return (
         <div className='absolute inset-0 z-0 bg-slate-50'>
             <MapContainer 
@@ -58,6 +58,21 @@ export const MapLayer = ({ pickupPos, destinationPos, officePos, mapCenter, book
                     bookingStep={bookingStep}
                 />
                 <ChangeView center={mapCenter} />
+
+                {/* Real Route Polyline (OSRM) */}
+                {polyline && polyline.length > 0 && (
+                    <Polyline 
+                        positions={polyline} 
+                        pathOptions={{ 
+                            color: '#4f46e5', 
+                            weight: 6, 
+                            opacity: 0.8,
+                            lineJoin: 'round',
+                            lineCap: 'round',
+                            dashArray: bookingStep === 'confirmSummary' ? null : '10, 10'
+                        }} 
+                    />
+                )}
 
                 {/* Persistent Office Marker & Radius - Always Visible */}
                 {isValidPos(officePos) && (
@@ -180,7 +195,7 @@ export const LocationHeader = ({
 /**
  * Shared Map Component Wrapper for usage inside Views
  */
-const MapBackground = ({ pickup, destination, officePos, mapCenter, currentGPSPos, bookingStep, onMapMove, onReverseGeocode, onMoveStart, isDragging, onCurrentLocation, MapEventsHandler, ChangeView }) => {
+const MapBackground = ({ pickup, destination, officePos, polyline, mapCenter, currentGPSPos, bookingStep, onMapMove, onReverseGeocode, onMoveStart, isDragging, onCurrentLocation, MapEventsHandler, ChangeView }) => {
     // In summary mode, the map is always centered on the current GPS position, clean and silent.
     const activeCenter = bookingStep === 'confirmSummary' && isValidPos(currentGPSPos) 
         ? currentGPSPos 
@@ -192,6 +207,7 @@ const MapBackground = ({ pickup, destination, officePos, mapCenter, currentGPSPo
                 pickupPos={pickup?.pos} 
                 destinationPos={destination?.pos} 
                 officePos={officePos}
+                polyline={polyline}
                 mapCenter={activeCenter} 
                 bookingStep={bookingStep} 
                 onMapMove={onMapMove} 
@@ -326,7 +342,7 @@ export const HomeViewPage = ({
 
 export const LocationPickerView = ({ 
     bookingStep, onBack, pickup, setPickup, destination, setDestination, mapCenter, setMapCenter, 
-    localQuery, setLocalQuery, isTyping, setIsTyping, handleSearch, isFetchingSuggestions, 
+    polyline, localQuery, setLocalQuery, isTyping, setIsTyping, handleSearch, isFetchingSuggestions, 
     suggestions, onSuggestionClick, isDragging, setIsDragging, onCurrentLocation, reverseGeocode, 
     MapEventsHandler, ChangeView, onSaveLocation, officePos,
     onConfirmPin
@@ -334,7 +350,7 @@ export const LocationPickerView = ({
     return (
         <div className='w-full h-dvh bg-white flex flex-col relative font-sans select-none overflow-hidden'>
             <MapBackground 
-                pickup={pickup} destination={destination} officePos={officePos} mapCenter={mapCenter} 
+                pickup={pickup} destination={destination} officePos={officePos} polyline={polyline} mapCenter={mapCenter} 
                 bookingStep={bookingStep} onMapMove={setMapCenter} 
                 onReverseGeocode={reverseGeocode} onMoveStart={() => setIsDragging(true)} 
                 isDragging={isDragging} onCurrentLocation={onCurrentLocation}
@@ -381,7 +397,7 @@ export const LocationPickerView = ({
 // --- CONFIRMATION VIEW ---
 export const ConfirmationView = ({ 
     officeAddress, pickup, destination, scheduledTime, isSolo, onToggleSolo, 
-    onEditPickup, onEditDestination, onConfirm, loading, mapCenter, currentGPSPos,
+    onEditPickup, onEditDestination, onConfirm, loading, mapCenter, polyline, currentGPSPos,
     onSchedulingClick, MapEventsHandler, ChangeView,
     invitedEmployees, onAddInvite, onRemoveInvite, onBack,
     isOfficeFixed, onSaveLocation, onRemoveLocation, savedLocations, officePos,
@@ -397,7 +413,7 @@ export const ConfirmationView = ({
     return (
         <div className='w-full h-dvh bg-white flex flex-col relative font-sans select-none overflow-hidden'>
             <MapBackground 
-                pickup={pickup} destination={destination} officePos={officePos} mapCenter={mapCenter} 
+                pickup={pickup} destination={destination} officePos={officePos} polyline={polyline} mapCenter={mapCenter} 
                 currentGPSPos={currentGPSPos}
                 bookingStep='confirmSummary' onMapMove={() => {}} 
                 onReverseGeocode={() => {}} onMoveStart={() => {}} 

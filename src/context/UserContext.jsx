@@ -20,8 +20,27 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     checkStatus();
     const interval = setInterval(checkStatus, 10000); // Check every 10 seconds
-    return () => clearInterval(interval);
-  }, []);
+    
+    // MULTI-TAB SYNC: Listen for storage changes in other tabs
+    const handleStorageChange = (e) => {
+      if (e.key === 'token') {
+        if (!e.newValue) {
+          // Token removed in another tab -> Logout
+          setUser(null);
+          setToken(null);
+        } else if (e.newValue !== token) {
+          // Token changed in another tab -> Sync and fetch profile
+          setToken(e.newValue);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [token]);
 
   const logout = () => {
     setUser(null);

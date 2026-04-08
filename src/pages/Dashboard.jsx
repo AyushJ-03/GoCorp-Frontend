@@ -20,7 +20,7 @@ import {
 } from '../components/DashboardViews';
 import CoworkerSearchView from '../components/CoworkerSearchView';
 
-const ChangeView = ({ center }) => {
+export const ChangeView = ({ center }) => {
   const map = useMapEvents({});
   const lastCenter = useRef(null);
   useEffect(() => {
@@ -34,7 +34,7 @@ const ChangeView = ({ center }) => {
   return null;
 };
 
-const MapEventsHandler = ({ onMoveStart, onMoveEnd, onReverseGeocode, bookingStep }) => {
+export const MapEventsHandler = ({ onMoveStart, onMoveEnd, onReverseGeocode, bookingStep }) => {
   const map = useMapEvents({
     move: () => onMoveStart(),
     moveend: () => {
@@ -98,6 +98,8 @@ const Dashboard = () => {
     const [retryLoading, setRetryLoading] = useState(false);
     const [invitedEmployees, setInvitedEmployees] = useState([]);
     const [isSearchingEmployees, setIsSearchingEmployees] = useState(false);
+
+    const [previewPolyline, setPreviewPolyline] = useState([]);
 
     // Refs for map stability
     const hasInitGeo = useRef(false);
@@ -221,6 +223,37 @@ const Dashboard = () => {
             handleCurrentLocation();
         }
     }, [user, handleCurrentLocation, bookingStep]);
+
+    // FETCH REAL ROAD ROUTE (OSRM) FOR PREVIEW
+    useEffect(() => {
+        const fetchPreview = async () => {
+            if (isValidPos(pickup.pos) && isValidPos(destination.pos)) {
+                try {
+                    // Coordinates in backend expect [lng, lat] for OSRM helper usually 
+                    // or [lat, lng] depending on implementation. 
+                    // Our updated backend helper takes absolute [lng, lat] for the URL.
+                    // But here we'll use a direct frontend call to OSRM or just wait for the ride object.
+                    // Actually, let's use the local API if we have a route for it.
+                    // For now, we'll fetch from OSRM directly from the frontend or use a backend proxy.
+                    const points = `${pickup.pos[1]},${pickup.pos[0]};${destination.pos[1]},${destination.pos[0]}`;
+                    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${points}?overview=full&geometries=geojson`);
+                    const data = await res.json();
+                    if (data.routes && data.routes[0]) {
+                        const coords = data.routes[0].geometry.coordinates.map(p => [p[1], p[0]]);
+                        setPreviewPolyline(coords);
+                    }
+                } catch (err) {
+                    console.error("OSRM Preview fetch failed", err);
+                }
+            } else {
+                setPreviewPolyline([]);
+            }
+        };
+
+        if (bookingStep === 'confirmSummary' || bookingStep === 'pickingDestination') {
+            fetchPreview();
+        }
+    }, [pickup.pos, destination.pos, bookingStep]);
 
     const handleSearch = useCallback(async (queryOverride) => {
         const q = typeof queryOverride === 'string' ? queryOverride : localQuery;
@@ -562,6 +595,7 @@ const Dashboard = () => {
                 setPickup={setPickup}
                 setDestination={setDestination}
                 mapCenter={mapCenter} setMapCenter={setMapCenter}
+                polyline={previewPolyline}
                 localQuery={localQuery} setLocalQuery={setLocalQuery}
                 isTyping={isTyping} setIsTyping={setIsTyping}
                 handleSearch={handleSearch}
@@ -601,6 +635,7 @@ const Dashboard = () => {
             isSolo={isSolo} onToggleSolo={handleToggleSolo}
             onConfirm={() => setShowConfirmBooking(true)} loading={bookingLoading}
             mapCenter={mapCenter}
+            polyline={previewPolyline}
             currentGPSPos={currentGPSPos}
             onSchedulingClick={() => changeStep('scheduling')}
             MapEventsHandler={MapEventsHandler}
